@@ -1,26 +1,54 @@
 import pygame
 
+#creating DrawRectangle function. 
+def drawRectangle(screen):
+    done = False
+    start = None
+    current = None
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    start = event.pos
+            if event.type == pygame.MOUSEMOTION:
+                if start is not None:
+                    current = event.pos
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    start = None
+
+        screen.fill((0, 0, 0))  #clear the screen with a black background
+        if start is not None and current is not None:
+            pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(start, (current[0]-start[0], current[1]-start[1])), 1)
+        pygame.display.flip()
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((640, 480))
     clock = pygame.time.Clock()
     
+    
     radius = 15
-    x = 0
-    y = 0
     mode = 'blue'
     points = []
-    
+    rectangles = []  #list to store rectangles
+    circles = []  #list to store circles
+    start = None
+    current = None
+    tool = 'rectangle'  #initialize tool to 'rectangle'
+    color = (255, 255, 255)  #current color
+
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 255, 255), (0, 0, 0), (128, 128, 128), (255, 165, 0)]  #list of colors
+
+
     while True:
-        
         pressed = pygame.key.get_pressed()
-        
         alt_held = pressed[pygame.K_LALT] or pressed[pygame.K_RALT]
         ctrl_held = pressed[pygame.K_LCTRL] or pressed[pygame.K_RCTRL]
         
         for event in pygame.event.get():
-            
-            # determin if X was clicked, or Ctrl+W or Alt+F4 was used
             if event.type == pygame.QUIT:
                 return
             if event.type == pygame.KEYDOWN:
@@ -30,56 +58,60 @@ def main():
                     return
                 if event.key == pygame.K_ESCAPE:
                     return
-            
-                # determine if a letter key was pressed
                 if event.key == pygame.K_r:
-                    mode = 'red'
-                elif event.key == pygame.K_g:
-                    mode = 'green'
-                elif event.key == pygame.K_b:
-                    mode = 'blue'
+                    tool = 'rectangle'
                 elif event.key == pygame.K_c:
-                    mode = 'circle'
-                elif event.key == pygame.K_t:
-                    mode = 'rectangle'
+                    tool = 'circle'
                 elif event.key == pygame.K_e:
-                    mode = 'eraser'
-                elif event.key == pygame.K_s:
-                    mode = 'select_color'
-            
+                    tool = 'eraser'
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # left click grows radius
-                    radius = min(200, radius + 1)
-                elif event.button == 3: # right click shrinks radius
-                    radius = max(1, radius - 1)
-            
+                if event.button == 1:
+                    start = event.pos
             if event.type == pygame.MOUSEMOTION:
-                # if mouse moved, add point to list
-                position = event.pos
-                if mode == 'eraser':
-                    points = [p for p in points if ((p[0]-position[0])**2 + (p[1]-position[1])**2)**0.5 > radius]
-                else:
-                    points = points + [position]
-                    points = points[-256:]
-                
+                if start is not None:
+                    current = event.pos
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    for i, col in enumerate(colors):
+                        if pygame.Rect(screen.get_width() - 20, i * 20, 20, 20).collidepoint(event.pos):
+                            color = col
+                            break
+                    if start is not None:
+                        end = event.pos
+                        #when a shape is created, store its color
+                        if tool == 'rectangle':
+                            rectangles.append((pygame.Rect(start, (end[0]-start[0], end[1]-start[1])), color))
+                        elif tool == 'circle':
+                            radius = int(((end[0]-start[0])**2 + (end[1]-start[1])**2)**0.5)
+                            circles.append((start, radius, color))
+                        if tool == 'eraser':
+                            #erase rectangles
+                            rectangles = [(rect, rect_color) for rect, rect_color in rectangles if not rect.collidepoint(end)]
+                            #erase circles
+                            circles = [(center, radius, circle_color) for center, radius, circle_color in circles if ((end[0]-center[0])**2 + (end[1]-center[1])**2)**0.5 > radius]
+                        start = None
+                        current = None
+
         screen.fill((0, 0, 0))
-        
-        # draw all points
-        i = 0
-        while i < len(points) - 1:
-            if mode == 'rectangle':
-                pygame.draw.rect(screen, (255, 255, 255), (points[i], (points[i+1][0]-points[i][0], points[i+1][1]-points[i][1])), radius)
-            elif mode == 'circle':
-                pygame.draw.circle(screen, (255, 255, 255), points[i], radius)
-            elif mode == 'eraser':
-                pygame.draw.circle(screen, (0, 0, 0), points[i], radius)
-            elif mode == 'select_color':
-                if len(points) >= 1:
-                    color = screen.get_at(points[-1])
-                    mode = 'blue'
-            else:
-                drawLineBetween(screen, i, points[i], points[i + 1], radius, mode)
-            i += 1
+
+        #when a shape is drawn, use its stored color
+        for rect, rect_color in rectangles:
+            pygame.draw.rect(screen, rect_color, rect, 1)
+        for center, radius, circle_color in circles:
+            pygame.draw.circle(screen, circle_color, center, radius, 1)
+
+        #when the temporary shape is drawn, use the current color
+        if start is not None and current is not None:
+            if tool == 'rectangle':
+                pygame.draw.rect(screen, color, pygame.Rect(start, (current[0]-start[0], current[1]-start[1])), 1)
+            elif tool == 'circle':
+                radius = int(((current[0]-start[0])**2 + (current[1]-start[1])**2)**0.5)
+                pygame.draw.circle(screen, color, start, radius, 1)
+
+         #draw color selection panel
+        for i, col in enumerate(colors):
+            pygame.draw.rect(screen, col, pygame.Rect(screen.get_width() - 20, i * 20, 20, 20))
+
         
         pygame.display.flip()
         
