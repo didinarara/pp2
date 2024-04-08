@@ -1,6 +1,10 @@
 import pygame
 import math
 
+def draw_parallelogram(screen, color, rect, depth):
+    points = [rect.topleft, rect.topright, (rect.topright[0] + depth, rect.topright[1] - depth), (rect.topleft[0] + depth, rect.topleft[1] - depth)]
+    pygame.draw.polygon(screen, color, points)  #draw the parallelogram
+
 def draw_right_triangle(screen, color, rect):
     points = [rect.topleft, rect.bottomleft, rect.topright]
     pygame.draw.polygon(screen, color, points)  #draw the right triangle
@@ -13,12 +17,14 @@ def draw_rhombus(screen, color, rect):
     points = [rect.midtop, rect.midright, rect.midbottom, rect.midleft]
     pygame.draw.polygon(screen, color, points)  #draw the rhombus
 
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((640, 480))
     clock = pygame.time.Clock()
 
-    rectangles = []  #list to store rectangles
+    rectangles = []  # list to store rectangles
     circles = []  #list to store circles
     squares = []
     right_triangles = []
@@ -66,13 +72,13 @@ def main():
                     tool = 'rhombus'
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    #check if a tool was clicked
+                    #tool was clicked
                     for i, t in enumerate(tools):
                         if pygame.Rect(i * 50, 0, 50, 50).collidepoint(event.pos):
                             tool = t
                             break
                     else:
-                        if DRAWING_AREA.collidepoint(event.pos):  #check if the click is within the drawing area
+                        if DRAWING_AREA.collidepoint(event.pos):  
                             start = event.pos
             if event.type == pygame.MOUSEMOTION:
                 if start is not None:
@@ -83,7 +89,7 @@ def main():
                         if pygame.Rect(screen.get_width() - 20, i * 20, 20, 20).collidepoint(event.pos):
                             color = col
                             break
-                    if start is not None and DRAWING_AREA.collidepoint(event.pos):  #check if the release is within the drawing area
+                    if start is not None and DRAWING_AREA.collidepoint(event.pos):  
                         end = event.pos
                         if tool == 'rectangle':
                             rectangles.append((pygame.Rect(start, (end[0]-start[0], end[1]-start[1])), color))
@@ -99,9 +105,8 @@ def main():
                         elif tool == 'rhombus':
                             rhombuses.append((pygame.Rect(start, (end[0]-start[0], end[1]-start[1])), color))
                         elif tool == 'eraser':
-                            #erase any shapes that intersect with the mouse cursor
-                            for shape_list in [rectangles, circles, squares, right_triangles, equilateral_triangles, rhombuses]:
-                                shape_list[:] = [(shape, shape_color) for shape, shape_color in shape_list if not shape.collidepoint(end)]
+                            rectangles = [(rect, rect_color) for rect, rect_color in rectangles if not rect.collidepoint(end)]
+                            circles = [(center, radius, circle_color) for center, radius, circle_color in circles if ((end[0]-center[0])**2 + (end[1]-center[1])**2)**0.5 > radius]
                         start = None
                         current = None
 
@@ -116,7 +121,7 @@ def main():
             elif t == 'circle':
                 pygame.draw.circle(screen, (0, 0, 0) if t == tool else (255, 255, 255), (i * 50 + 25, 25), 15, 2)
             elif t == 'eraser':
-                pygame.draw.rect(screen, (0, 0, 0) if t == tool else (255, 255, 255), pygame.Rect(i * 50 + 5, 30, 30, 30), 2)
+                draw_parallelogram(screen, (0, 0, 0) if t == tool else (255, 255, 255), pygame.Rect(i * 50 + 5, 30, 30, 30), 10)
             elif t == 'square':
                 pygame.draw.rect(screen, (0, 0, 0) if t == tool else (255, 255, 255), pygame.Rect(i * 50 + 10, 10, 30, 30), 2)
             elif t == 'right_triangle':
